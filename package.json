@@ -1,0 +1,52 @@
+{
+  "name": "gem-bidguard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Powered Integrated Bid Compliance Verification Platform for GeM Procurement (SIH 2026 PS 26100) — decision-support MVP.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma db push --force-reset && prisma db seed",
+    "db:studio": "prisma studio",
+    "verify:engines": "node --experimental-strip-types --import ./scripts/tshook.mjs scripts/verify-engines.ts",
+    "demo:verify": "tsx --conditions react-server scripts/demo-verify.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "class-variance-authority": "0.7.0",
+    "clsx": "2.1.1",
+    "lucide-react": "0.454.0",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "server-only": "0.0.1",
+    "react-dom": "18.3.1",
+    "recharts": "2.13.3",
+    "tailwind-merge": "2.5.4",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.11",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.20",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.15",
+    "postcss": "8.4.47",
+    "prisma": "5.22.0",
+    "tailwindcss": "3.4.14",
+    "tsx": "4.19.1",
+    "typescript": "5.6.3"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

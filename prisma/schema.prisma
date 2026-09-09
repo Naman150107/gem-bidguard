@@ -1,0 +1,233 @@
+// GeM BidGuard — Prisma schema
+// SIH 2026 PS 26100 — AI-Powered Integrated Bid Compliance Verification Platform
+//
+// Datasource is PostgreSQL (Supabase). For an emergency offline demo you can
+// switch `provider` to "sqlite" and set DATABASE_URL="file:./dev.db" (see README).
+//
+// NOTE ON ENUMS: status/result fields are modelled as `String` (not native
+// Prisma enums) on purpose, so the allowed values live in one place in
+// `src/lib/types.ts` and stay in sync with Zod validation. Allowed values are
+// documented inline next to each field.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Tender & requirements
+// ---------------------------------------------------------------------------
+
+model Tender {
+  id                   String   @id @default(cuid())
+  referenceNo          String   @unique
+  title                String
+  ministry             String
+  category             String // e.g. "Goods", "Services"
+  estimatedValue       Int // in INR
+  bidSubmissionDeadline DateTime
+  description          String
+
+  requirements TenderRequirement[]
+  rules        Rule[]
+  bidders      Bidder[]
+  runs         VerificationRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TenderRequirement {
+  id          String  @id @default(cuid())
+  tenderId    String
+  code        String // e.g. "REQ-EMD"
+  title       String
+  description String
+  mandatory   Boolean @default(true)
+  category    String // "Eligibility" | "Technical" | "Financial" | "Statutory"
+
+  tender Tender @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@unique([tenderId, code])
+}
+
+// Deterministic compliance rules. scope/weightCategory drive the engines.
+model Rule {
+  id             String  @id @default(cuid())
+  tenderId       String? // null => global statutory rule
+  code           String  @unique
+  title          String
+  description    String
+  scope          String // "STATUTORY" | "TENDER" | "DOCUMENT" | "CONSISTENCY"
+  weightCategory String // "MANDATORY" | "STATUTORY" | "DOCUMENT" | "CONSISTENCY"
+  severityOnFail String // "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+  config         Json? // rule parameters (required source, fields to check, etc.)
+
+  tender Tender? @relation(fields: [tenderId], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// Bidder & documents
+// ---------------------------------------------------------------------------
+
+model Bidder {
+  id                     String  @id @default(cuid())
+  tenderId               String
+  name                   String
+  legalName              String
+  pan                    String
+  gstin                  String
+  udyamNumber            String?
+  cin                    String? // MCA company identification number
+  msmeCategory           String? // "Micro" | "Small" | "Medium"
+  isStartup              Boolean @default(false)
+  address                String
+  contactEmail           String
+  contactPhone           String
+  declaredLocalContentPct Int?
+  // Demo annotation only — the engine does NOT read this. Documents the
+  // intended outcome so the seed's realism can be checked.
+  expectedRiskNote       String?
+
+  tender    Tender            @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  documents Document[]
+  runs      VerificationRun[]
+
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id                   String    @id @default(cuid())
+  bidderId             String
+  type                 String // see DocumentType in src/lib/types.ts
+  fileName             String
+  mimeType             String    @default("text/plain")
+  content              String // seeded document text (stands in for OCR/parsed text)
+  issueDate            DateTime?
+  expiryDate           DateTime?
+  status               String    @default("UPLOADED") // "UPLOADED"
+  extractedFields      Json? // populated by the AI extraction step
+  extractionConfidence Float?
+
+  bidder Bidder @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Verification run & results
+// ---------------------------------------------------------------------------
+
+model VerificationRun {
+  id              String    @id @default(cuid())
+  bidderId        String
+  tenderId        String
+  status          String    @default("PENDING") // "PENDING" | "COMPLETED" | "FAILED"
+  complianceScore Int? // 0-100
+  riskLevel       String? // "LOW" | "MODERATE" | "HIGH" | "CRITICAL"
+  decisionStatus  String    @default("PENDING") // "PENDING" | "QUALIFIED" | "REJECTED"
+  summary         String? // AI-generated human-readable summary
+  recommendation  String? // AI recommendation (decision-support only)
+  extractionMode  String? // "seeded" | "llm"
+  scoreBreakdown  Json? // per-category subscores + weights
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  bidder          Bidder           @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  tender          Tender           @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  ruleResults     RuleResult[]
+  findings        Finding[]
+  discrepancies   Discrepancy[]
+  providerResults ProviderResult[]
+  auditEvents     AuditEvent[]
+  decision        OfficerDecision?
+}
+
+model RuleResult {
+  id        String  @id @default(cuid())
+  runId     String
+  ruleCode  String
+  ruleTitle String
+  category  String // weight category
+  result    String // "PASS" | "FAIL" | "WARNING" | "PENDING" | "UNVERIFIED" | "NOT_APPLICABLE"
+  detail    String
+  evidence  Json?
+
+  run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model Finding {
+  id                  String  @id @default(cuid())
+  runId               String
+  finding             String
+  severity            String // "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO"
+  confidence          Float // 0..1
+  evidence            Json?
+  affectedRequirement String?
+  source              String  @default("AI_EXTRACTION")
+
+  run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model Discrepancy {
+  id          String @id @default(cuid())
+  runId       String
+  kind        String // see DiscrepancyKind in src/lib/types.ts
+  severity    String // "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+  description String
+  sources     Json // conflicting values keyed by source
+
+  run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ProviderResult {
+  id         String  @id @default(cuid())
+  runId      String
+  source     String // "GST" | "PAN" | "UDYAM" | "MCA" | "EPFO" | "ESIC" | "STARTUP_INDIA" | "NSIC" | "DEBARMENT"
+  status     String // "VERIFIED" | "NOT_FOUND" | "MISMATCH" | "UNVERIFIED" | "ERROR"
+  confidence Float?
+  payload    Json // authoritative record returned by the (mock) provider
+  isMock     Boolean @default(true)
+
+  run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Audit trail & officer decision
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id           String   @id @default(cuid())
+  runId        String?
+  tenderId     String?
+  bidderId     String?
+  timestamp    DateTime @default(now())
+  officer      String
+  action       String // see AuditAction in src/lib/types.ts
+  source       String?
+  rule         String?
+  result       String?
+  evidence     Json?
+  aiConfidence Float?
+  decision     String?
+
+  run VerificationRun? @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([bidderId])
+  @@index([tenderId])
+  @@index([timestamp])
+}
+
+model OfficerDecision {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  officer   String
+  decision  String // "QUALIFIED" | "REJECTED"
+  note      String?
+  timestamp DateTime @default(now())
+
+  run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
