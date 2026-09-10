@@ -99,6 +99,11 @@ model Bidder {
   documents Document[]
   runs      VerificationRun[]
 
+  // Bandwidth Radar (capacity-exposure layer) — independent of compliance.
+  gemAwards            GeMAward[]
+  capacityProfile      VendorCapacityProfile?
+  bandwidthAssessments BandwidthAssessment[]
+
   createdAt DateTime @default(now())
 }
 
@@ -231,4 +236,80 @@ model OfficerDecision {
   timestamp DateTime @default(now())
 
   run VerificationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Bandwidth Radar — concurrent-obligation capacity exposure
+// ---------------------------------------------------------------------------
+//
+// This layer is INDEPENDENT of the compliance pipeline above. It estimates
+// whether a vendor can absorb another contract given its current concurrent GeM
+// obligations. It is a capacity SIGNAL only and never sets qualification state.
+//
+// Award data is demo/simulated (source = "SEEDED", isMock = true). The provider
+// abstraction (src/server/providers/gem-award.ts) lets a future authorized GeM
+// award feed replace the seeded source without touching the exposure engine.
+
+// One GeM contract awarded to a bidder. Only ACTIVE awards contribute to the
+// vendor's live obligation load; COMPLETED and CANCELLED awards are excluded.
+model GeMAward {
+  id                String   @id @default(cuid())
+  bidderId          String
+  referenceNo       String   @unique // GeM contract/award reference (demo)
+  title             String
+  category          String // procurement category, e.g. "Goods", "Services"
+  procuringOrg      String // awarding ministry / PSU / department
+  state             String // region of performance, e.g. "Maharashtra"
+  awardValue        Int // contract value in INR
+  awardDate         DateTime
+  contractStart     DateTime
+  expectedCompletion DateTime
+  status            String   @default("ACTIVE") // "ACTIVE" | "COMPLETED" | "CANCELLED"
+  source            String   @default("SEEDED") // "SEEDED" | "GEM_PUBLIC"
+  isMock            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  bidder Bidder @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([bidderId])
+  @@index([status])
+  @@index([state])
+  @@index([category])
+}
+
+// Deterministic capacity inputs for a bidder. Stored (not client-provided) so
+// the exposure engine always computes from server-trusted values. estimatedCapacity
+// is derived transparently from turnover/category/workforce (see CAPACITY_MODEL).
+model VendorCapacityProfile {
+  id                          String   @id @default(cuid())
+  bidderId                    String   @unique
+  estimatedCapacity           Int // INR — concurrent order-book capacity
+  capacityBasis               String // human-readable derivation of the number
+  turnoverBasis               Int // INR — average annual turnover used
+  workforceBasis              Int // declared headcount used
+  recommendedExposureThreshold Int // exposure % beyond which a new award is flagged
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  bidder Bidder @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+}
+
+// A point-in-time snapshot of a bidder's capacity exposure. Recomputed on demand
+// by the deterministic engine; persisted for audit traceability.
+model BandwidthAssessment {
+  id                   String   @id @default(cuid())
+  bidderId             String
+  currentExposurePct   Float
+  activeContractCount  Int
+  activeObligationValue Int // INR — summed ACTIVE award values
+  estimatedCapacity    Int // INR — capacity used for this snapshot
+  remainingCapacityPct Float
+  exposureLevel        String // "HEALTHY" | "WATCH" | "HIGH" | "CRITICAL"
+  calculationEvidence  Json // included/excluded awards + math, for traceability
+  assessedAt           DateTime @default(now())
+
+  bidder Bidder @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([bidderId])
+  @@index([assessedAt])
 }

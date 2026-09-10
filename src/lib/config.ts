@@ -9,8 +9,10 @@
 
 import {
   ComplianceResult,
+  ExposureLevel,
   RiskLevel,
   WeightCategory,
+  type ExposureLevel as ExposureLevelT,
   type RiskLevel as RiskLevelT,
   type WeightCategory as WeightCategoryT,
   type ComplianceResult as ComplianceResultT,
@@ -80,3 +82,69 @@ export const UPLOAD_LIMITS = {
   maxBytes: 10 * 1024 * 1024, // 10 MB
   allowedMimeTypes: ["application/pdf", "text/plain", "image/png", "image/jpeg"],
 };
+
+// ===========================================================================
+// Bandwidth Radar — concurrent-obligation capacity model & thresholds
+// ===========================================================================
+//
+// This layer is INDEPENDENT of the compliance score above. It answers "can the
+// vendor absorb another contract?", not "is the vendor compliant?". All tunable
+// numbers live here so there are no magic values scattered through the engine.
+
+/**
+ * Exposure bands, evaluated top-down by exposure % (0..∞, typically 0..100+).
+ *   <60 HEALTHY | 60-80 WATCH | 80-90 HIGH | >=90 CRITICAL
+ * (60 -> WATCH, 80 -> HIGH, 90 -> CRITICAL at the boundaries.)
+ */
+export const EXPOSURE_THRESHOLDS: { min: number; level: ExposureLevelT }[] = [
+  { min: 90, level: ExposureLevel.CRITICAL },
+  { min: 80, level: ExposureLevel.HIGH },
+  { min: 60, level: ExposureLevel.WATCH },
+  { min: 0, level: ExposureLevel.HEALTHY },
+];
+
+/**
+ * Deterministic vendor-capacity model. Estimated concurrent-execution capacity
+ * (in INR) is derived transparently from vendor scale:
+ *
+ *   estimatedCapacity =
+ *       averageAnnualTurnover × turnoverConcurrentMultiple × categoryFactor
+ *     + declaredWorkforce × perEmployeeCapacityInr
+ *
+ * Rationale: a vendor can typically carry a concurrent order book worth a
+ * multiple of its annual revenue, adjusted for how much concurrency its
+ * enterprise class and headcount can realistically sustain. This is an ADVISORY
+ * estimate, not a statutory determination.
+ */
+export const CAPACITY_MODEL = {
+  turnoverConcurrentMultiple: 1.5,
+  perEmployeeCapacityInr: 200_000,
+  /** Multiplier by MSME/enterprise class; larger firms sustain more concurrency. */
+  categoryFactor: {
+    Micro: 0.8,
+    Small: 1.0,
+    Medium: 1.15,
+    Large: 1.25,
+  } as Record<string, number>,
+  /** Fallback class when a bidder has no declared MSME category (treated as non-MSME/large). */
+  defaultCategory: "Large",
+  /**
+   * Exposure % beyond which a NEW award is flagged as pushing the vendor into
+   * over-commitment. Aligns with the WATCH→HIGH boundary.
+   */
+  recommendedExposureThresholdPct: 80,
+} as const;
+
+/** Map an exposure % to its band. */
+export function exposureLevelForPct(pct: number): ExposureLevelT {
+  for (const band of EXPOSURE_THRESHOLDS) {
+    if (pct >= band.min) return band.level;
+  }
+  return ExposureLevel.HEALTHY;
+}
+
+/** Resolve the capacity category factor for a (possibly missing) MSME category. */
+export function capacityCategoryFactor(msmeCategory?: string | null): number {
+  const key = msmeCategory && msmeCategory.trim() ? msmeCategory : CAPACITY_MODEL.defaultCategory;
+  return CAPACITY_MODEL.categoryFactor[key] ?? CAPACITY_MODEL.categoryFactor[CAPACITY_MODEL.defaultCategory];
+}

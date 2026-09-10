@@ -143,6 +143,10 @@ export const AuditAction = {
   RISK_SCORED: "RISK_SCORED",
   AI_SUMMARY: "AI_SUMMARY",
   OFFICER_DECISION: "OFFICER_DECISION",
+  // Bandwidth Radar (capacity-exposure layer) — separate from compliance.
+  BANDWIDTH_ASSESSED: "BANDWIDTH_ASSESSED",
+  OBLIGATION_LEDGER_VIEWED: "OBLIGATION_LEDGER_VIEWED",
+  AWARD_SIMULATION_RUN: "AWARD_SIMULATION_RUN",
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 
@@ -152,6 +156,40 @@ export const ExtractionMode = {
 } as const;
 export type ExtractionMode = (typeof ExtractionMode)[keyof typeof ExtractionMode];
 
+// --- Bandwidth Radar (concurrent-obligation capacity layer) -----------------
+//
+// This is an EXECUTION-CAPACITY EXPOSURE signal, deliberately kept separate
+// from the compliance/risk score. It never qualifies or disqualifies a bidder.
+
+/** Vendor exposure bands (see EXPOSURE_THRESHOLDS in config.ts). */
+export const ExposureLevel = {
+  HEALTHY: "HEALTHY",
+  WATCH: "WATCH",
+  HIGH: "HIGH",
+  CRITICAL: "CRITICAL",
+} as const;
+export type ExposureLevel = (typeof ExposureLevel)[keyof typeof ExposureLevel];
+
+/** Lifecycle of a GeM award. Only ACTIVE awards contribute to exposure. */
+export const AwardStatus = {
+  ACTIVE: "ACTIVE",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type AwardStatus = (typeof AwardStatus)[keyof typeof AwardStatus];
+
+/**
+ * Source tag for GeM award data. The MVP uses SEEDED demo data only; a future
+ * authorized/public GeM award feed would register a new source behind the same
+ * provider interface without changing the exposure engine.
+ */
+export const GeMAwardSource = {
+  SEEDED: "SEEDED",
+  GEM_PUBLIC: "GEM_PUBLIC", // reserved for a future authorized integration
+} as const;
+export type GeMAwardSource =
+  (typeof GeMAwardSource)[keyof typeof GeMAwardSource];
+
 // --- Cross-cutting constants ------------------------------------------------
 
 /**
@@ -160,3 +198,14 @@ export type ExtractionMode = (typeof ExtractionMode)[keyof typeof ExtractionMode
  */
 export const AI_DISCLAIMER =
   "AI-generated verification and recommendation. Final qualification/disqualification decision remains with the Procurement Officer.";
+
+/**
+ * Advisory shown wherever a Bandwidth Radar exposure figure appears. Exposure is
+ * a capacity signal computed by a deterministic model from simulated award data
+ * — it is decision-support only and does not qualify or disqualify a bidder.
+ */
+export const BANDWIDTH_DISCLAIMER =
+  "Capacity signal only — a deterministic advisory estimate, not a statutory eligibility determination. It does not qualify or disqualify the bidder.";
+
+/** Label for the simulated GeM award data source (shown wherever it is used). */
+export const GEM_AWARD_DATA_LABEL = "Demo / Simulated GeM Award Data";
