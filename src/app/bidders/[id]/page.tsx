@@ -9,6 +9,10 @@ import { RiskBadge, DecisionBadge } from "@/components/app/status";
 import { DisclaimerBanner } from "@/components/app/disclaimer";
 import { VerificationReport } from "@/components/app/verification-report";
 import {
+  BandwidthRadarCard,
+  BandwidthRadarUnavailable,
+} from "@/components/app/bandwidth-radar";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -26,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getBidderDetail } from "@/lib/queries";
+import { getBandwidthAssessment } from "@/server/bandwidth";
 import { getCurrentOfficer } from "@/lib/officer";
 import { formatDate } from "@/lib/utils";
 import { humanizeDocType } from "@/lib/doc-labels";
@@ -45,6 +50,11 @@ export default async function BidderPage({
   const run = bidder.runs[0] ?? null;
   const completed = run?.status === RunStatus.COMPLETED;
   const score = completed ? run?.complianceScore ?? null : null;
+
+  // Bandwidth Radar (capacity exposure) — deliberately separate from the
+  // compliance verification above. Null when no server-side capacity profile
+  // exists; the card then renders an explanatory fallback.
+  const bandwidth = await getBandwidthAssessment(bidder.id).catch(() => null);
 
   const identity: { label: string; value: React.ReactNode }[] = [
     { label: "Legal name", value: bidder.legalName },
@@ -150,6 +160,13 @@ export default async function BidderPage({
         />
       ) : (
         <DisclaimerBanner compact />
+      )}
+
+      {/* Bandwidth Radar — capacity exposure (advisory, independent of compliance) */}
+      {bandwidth ? (
+        <BandwidthRadarCard assessment={bandwidth} bidderId={bidder.id} />
+      ) : (
+        <BandwidthRadarUnavailable />
       )}
 
       {/* Documents */}
