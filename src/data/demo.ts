@@ -559,7 +559,7 @@ const xyz: DemoBidder = {
   contactPhone: "+91-260-242-1100",
   declaredLocalContentPct: 55,
   expectedRiskNote:
-    "Compliant on essentials but several warnings (thin experience, EPFO arrears, expired EPFO doc, address/GSTIN inconsistencies) — expected MODERATE risk.",
+    "Compliant on essentials but needs review (unverifiable experience, EPFO arrears, expired EPFO doc, address/GSTIN inconsistencies) — expected MODERATE risk.",
   documents: [
     doc(
       DocumentType.GST_CERTIFICATE,
@@ -642,7 +642,7 @@ PAN: AAACX5678Q
 GSTIN: 24AAACX5678Q1Z9
 Registered Address: Survey 88, GIDC, Vapi, Gujarat 396195
 Blacklisted/Debarred by any Government entity: No
-Similar Supply Orders (last 5 years): 1
+Similar Supply Orders (last 5 years): see enclosed annexure
 EMD Paid: INR 9,00,000
 EMD Exemption Claimed: No`,
     ),
