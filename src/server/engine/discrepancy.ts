@@ -136,5 +136,96 @@ export function detectDiscrepancies(input: VerificationInput): Discrepancy[] {
     });
   }
 
+  // Conflicting identity facts BETWEEN the bidder's own documents. The
+  // profile's declared values only carry the first document per type, so
+  // without this check a conflicting upload (e.g. a second GST certificate
+  // with a different GSTIN) would be silently ignored. PAN/GSTIN are strict
+  // identifiers, so any two documents disagreeing on them is flagged;
+  // legal names are compared only within the same document type, where
+  // trade-name-vs-legal-name variation cannot explain a difference.
+  out.push(...detectInterDocumentConflicts(profile.documents));
+
+  return out;
+}
+
+type ProfileDocument = VerificationInput["profile"]["documents"][number];
+
+/** Short human label for a document source, e.g. `GST certificate "f.pdf"`. */
+function docLabel(d: ProfileDocument): string {
+  const kind =
+    d.type === "GST_CERTIFICATE"
+      ? "GST certificate"
+      : d.type === "PAN_CARD"
+        ? "PAN card"
+        : d.type === "BID_DECLARATION"
+          ? "Bid declaration"
+          : d.type;
+  return `${kind} "${d.fileName}"`;
+}
+
+/**
+ * Flag identity conflicts between the bidder's own documents. Pure and
+ * deterministic: documents are compared in fileName order and at most one
+ * discrepancy per field is emitted, so output is stable for the same inputs.
+ */
+function detectInterDocumentConflicts(docs: ProfileDocument[]): Discrepancy[] {
+  const out: Discrepancy[] = [];
+  const ordered = [...docs].sort((a, b) => a.fileName.localeCompare(b.fileName));
+
+  /** First pair of documents whose normalized values for `get` differ. */
+  const firstConflict = (
+    list: ProfileDocument[],
+    get: (d: ProfileDocument) => string,
+  ): [ProfileDocument, ProfileDocument] | null => {
+    const holders = list.filter((d) => get(d));
+    for (let i = 0; i < holders.length; i++) {
+      for (let j = i + 1; j < holders.length; j++) {
+        if (get(holders[i]) !== get(holders[j])) return [holders[i], holders[j]];
+      }
+    }
+    return null;
+  };
+
+  const panConflict = firstConflict(ordered, (d) => normId(d.pan));
+  if (panConflict) {
+    const [a, b] = panConflict;
+    out.push({
+      kind: DiscrepancyKind.PAN_MISMATCH,
+      severity: Severity.HIGH,
+      description: `PAN differs between uploaded documents: "${a.pan}" (${docLabel(a)}) vs "${b.pan}" (${docLabel(b)}). Officer should determine which document is authoritative.`,
+      sources: [docLabel(a), docLabel(b)],
+    });
+  }
+
+  const gstinConflict = firstConflict(ordered, (d) => normId(d.gstin));
+  if (gstinConflict) {
+    const [a, b] = gstinConflict;
+    out.push({
+      kind: DiscrepancyKind.GSTIN_MISMATCH,
+      severity: Severity.MEDIUM,
+      description: `GSTIN differs between uploaded documents: "${a.gstin}" (${docLabel(a)}) vs "${b.gstin}" (${docLabel(b)}). Officer should determine which document is authoritative.`,
+      sources: [docLabel(a), docLabel(b)],
+    });
+  }
+
+  const byType = new Map<string, ProfileDocument[]>();
+  for (const d of ordered) {
+    const list = byType.get(d.type) ?? [];
+    list.push(d);
+    byType.set(d.type, list);
+  }
+  for (const [, group] of byType) {
+    const nameConflict = firstConflict(group, (d) => normName(d.legalName));
+    if (nameConflict) {
+      const [a, b] = nameConflict;
+      out.push({
+        kind: DiscrepancyKind.NAME_MISMATCH,
+        severity: Severity.HIGH,
+        description: `Legal name differs between ${docLabel(a)} ("${a.legalName}") and ${docLabel(b)} ("${b.legalName}"). Officer should determine which document is authoritative.`,
+        sources: [docLabel(a), docLabel(b)],
+      });
+    }
+  }
+
   return out;
 }
