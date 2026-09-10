@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Building2, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { RunVerificationButton } from "@/components/app/run-verification-button";
+import { DocumentUploader } from "@/components/app/document-uploader";
 import { ScoreGauge } from "@/components/app/score-gauge";
 import { RiskBadge, DecisionBadge } from "@/components/app/status";
 import { DisclaimerBanner } from "@/components/app/disclaimer";
@@ -142,6 +143,9 @@ export default async function BidderPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="border-b p-4">
+            <DocumentUploader bidderId={bidder.id} />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -152,21 +156,32 @@ export default async function BidderPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bidder.documents.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-2 font-medium">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {d.fileName}
-                    </span>
+              {bidder.documents.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-6 text-center text-sm text-muted-foreground"
+                  >
+                    No documents yet. Use the upload form above to add one.
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{humanizeDocType(d.type)}</Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(d.issueDate)}</TableCell>
-                  <TableCell>{formatDate(d.expiryDate)}</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                bidder.documents.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        {d.fileName}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{humanizeDocType(d.type)}</Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(d.issueDate)}</TableCell>
+                    <TableCell>{formatDate(d.expiryDate)}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
