@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExposureLevel, type ExposureLevel as ExposureLevelT } from "@/lib/types";
-import { formatDateTime, formatINR } from "@/lib/utils";
+import { formatDate, formatDateTime, formatINR } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Prop shapes (structural subset of the bandwidth service payloads, so this
@@ -71,6 +71,7 @@ export interface LedgerAwardLine {
   state: string;
   awardValue: number;
   status: string;
+  expectedCompletion: string | null;
   included: boolean;
   reason: string;
 }
@@ -142,8 +143,10 @@ function AwardTable({ awards }: { awards: LedgerAwardLine[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Contract</TableHead>
+          <TableHead>Category</TableHead>
           <TableHead>Procuring org · State</TableHead>
           <TableHead className="text-right">Value</TableHead>
+          <TableHead>Completion</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Why</TableHead>
         </TableRow>
@@ -157,12 +160,18 @@ function AwardTable({ awards }: { awards: LedgerAwardLine[] }) {
                 {a.title}
               </span>
             </TableCell>
+            <TableCell>
+              <Badge variant="secondary">{a.category}</Badge>
+            </TableCell>
             <TableCell className="text-xs">
               {a.procuringOrg}
               <span className="block text-muted-foreground">{a.state}</span>
             </TableCell>
             <TableCell className="text-right font-medium">
               {formatINR(a.awardValue)}
+            </TableCell>
+            <TableCell className="text-xs">
+              {formatDate(a.expectedCompletion)}
             </TableCell>
             <TableCell>
               <Badge variant={a.included ? "success" : "secondary"}>
