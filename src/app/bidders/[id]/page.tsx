@@ -12,6 +12,7 @@ import {
   BandwidthRadarCard,
   BandwidthRadarUnavailable,
 } from "@/components/app/bandwidth-radar";
+import { BandwidthSimulateCard } from "@/components/app/bandwidth-simulate";
 import {
   Card,
   CardContent,
@@ -168,6 +169,12 @@ export default async function BidderPage({
       ) : (
         <BandwidthRadarUnavailable />
       )}
+
+      {/* What-if simulation — hypothetical projection, never mutates awards */}
+      <BandwidthSimulateCard
+        bidderId={bidder.id}
+        available={bandwidth !== null}
+      />
 
       {/* Documents */}
       <Card>
