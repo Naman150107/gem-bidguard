@@ -201,6 +201,7 @@ export async function runVerification(
           finding: f.finding,
           severity: f.severity,
           confidence: f.confidence,
+          evidence: { code: f.code, document: f.affectedDocument ?? null } as unknown as object,
           affectedRequirement: f.affectedDocument,
           source: "AI_EXTRACTION",
         })),

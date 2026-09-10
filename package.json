@@ -5,6 +5,7 @@
   "description": "AI-Powered Integrated Bid Compliance Verification Platform for GeM Procurement (SIH 2026 PS 26100) — decision-support MVP.",
   "scripts": {
     "dev": "next dev",
+    "postinstall": "prisma generate",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",

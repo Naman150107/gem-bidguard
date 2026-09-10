@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Building2, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { RunVerificationButton } from "@/components/app/run-verification-button";
+import { DocumentUploader } from "@/components/app/document-uploader";
 import { ScoreGauge } from "@/components/app/score-gauge";
 import { RiskBadge, DecisionBadge } from "@/components/app/status";
 import { DisclaimerBanner } from "@/components/app/disclaimer";
+import { VerificationReport } from "@/components/app/verification-report";
 import {
   Card,
   CardContent,
@@ -24,6 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getBidderDetail } from "@/lib/queries";
+import { getCurrentOfficer } from "@/lib/officer";
 import { formatDate } from "@/lib/utils";
 import { humanizeDocType } from "@/lib/doc-labels";
 import { RunStatus, DecisionStatus, type DecisionStatus as DecisionStatusT } from "@/lib/types";
@@ -38,6 +41,7 @@ export default async function BidderPage({
   const bidder = await getBidderDetail(params.id);
   if (!bidder) notFound();
 
+  const officer = getCurrentOfficer();
   const run = bidder.runs[0] ?? null;
   const completed = run?.status === RunStatus.COMPLETED;
   const score = completed ? run?.complianceScore ?? null : null;
@@ -81,18 +85,18 @@ export default async function BidderPage({
             <CardTitle className="text-base">Latest verification</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-3">
-            {completed ? (
+            {completed && run ? (
               <>
                 <ScoreGauge score={score} />
-                <RiskBadge level={run?.riskLevel as never} />
+                <RiskBadge level={run.riskLevel as never} />
                 <DecisionBadge
-                  status={(run?.decisionStatus as DecisionStatusT) ?? DecisionStatus.PENDING}
+                  status={(run.decisionStatus as DecisionStatusT) ?? DecisionStatus.PENDING}
                 />
                 <Link
-                  href={`/verification/${run?.id}`}
-                  className={buttonVariants({ variant: "default", size: "sm" })}
+                  href={`/verification/${run.id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
-                  View full report
+                  Open standalone report
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </>
@@ -129,7 +133,15 @@ export default async function BidderPage({
         </Card>
       </div>
 
-      {completed && <DisclaimerBanner compact />}
+      {completed && run ? (
+        <VerificationReport
+          run={run}
+          requirements={bidder.tender.requirements}
+          officerName={officer.name}
+        />
+      ) : (
+        <DisclaimerBanner compact />
+      )}
 
       {/* Documents */}
       <Card>
@@ -142,6 +154,9 @@ export default async function BidderPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="border-b p-4">
+            <DocumentUploader bidderId={bidder.id} />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -152,21 +167,32 @@ export default async function BidderPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bidder.documents.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-2 font-medium">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {d.fileName}
-                    </span>
+              {bidder.documents.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-6 text-center text-sm text-muted-foreground"
+                  >
+                    No documents yet. Use the upload form above to add one.
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{humanizeDocType(d.type)}</Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(d.issueDate)}</TableCell>
-                  <TableCell>{formatDate(d.expiryDate)}</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                bidder.documents.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        {d.fileName}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{humanizeDocType(d.type)}</Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(d.issueDate)}</TableCell>
+                    <TableCell>{formatDate(d.expiryDate)}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
