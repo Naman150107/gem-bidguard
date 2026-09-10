@@ -10,6 +10,9 @@ export const AUDIT_ACTION_LABEL: Record<AuditActionT, string> = {
   [AuditAction.RISK_SCORED]: "Risk scored",
   [AuditAction.AI_SUMMARY]: "AI summary generated",
   [AuditAction.OFFICER_DECISION]: "Officer decision",
+  [AuditAction.BANDWIDTH_ASSESSED]: "Bandwidth assessed",
+  [AuditAction.OBLIGATION_LEDGER_VIEWED]: "Obligation ledger viewed",
+  [AuditAction.AWARD_SIMULATION_RUN]: "Award simulation run",
 };
 
 export function humanizeAction(action: string): string {

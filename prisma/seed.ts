@@ -12,6 +12,8 @@
 
 import { PrismaClient } from "@prisma/client";
 import { demoDataset } from "../src/data/demo";
+import { demoAwardBook } from "../src/data/gem-awards";
+import { computeCapacity } from "../src/server/engine/bandwidth";
 
 const prisma = new PrismaClient();
 
@@ -29,6 +31,10 @@ async function clearAll() {
   await prisma.ruleResult.deleteMany();
   await prisma.verificationRun.deleteMany();
   await prisma.document.deleteMany();
+  // Bandwidth Radar tables (independent of the compliance pipeline).
+  await prisma.bandwidthAssessment.deleteMany();
+  await prisma.geMAward.deleteMany();
+  await prisma.vendorCapacityProfile.deleteMany();
   await prisma.bidder.deleteMany();
   await prisma.rule.deleteMany();
   await prisma.tenderRequirement.deleteMany();
@@ -111,6 +117,74 @@ async function main() {
       },
     });
     console.log(`   ✓ ${b.name} (${b.documents.length} documents)`);
+  }
+
+  console.log("→ Seeding Bandwidth Radar award ledger + capacity profiles (simulated)...");
+  // Map demo bidder key -> created bidder row (matched by legalName via demoDataset).
+  const createdBidders = await prisma.bidder.findMany({
+    where: { tenderId: createdTender.id },
+  });
+  const keyToBidderId = new Map<string, string>();
+  for (const demoBidder of bidders) {
+    const row = createdBidders.find((r) => r.name === demoBidder.name);
+    if (row) keyToBidderId.set(demoBidder.key, row.id);
+  }
+  for (const book of demoAwardBook) {
+    const bidderId = keyToBidderId.get(book.bidderKey);
+    if (!bidderId) {
+      console.warn(`   ! No bidder row for award-book key ${book.bidderKey}; skipping.`);
+      continue;
+    }
+    const bidderRow = createdBidders.find((r) => r.id === bidderId);
+    // Capacity inputs are server-trusted seed values (never client-provided).
+    // The estimated capacity is DERIVED via the deterministic engine — not hard-coded.
+    const capacity = computeCapacity({
+      turnover: book.capacity.turnover,
+      workforce: book.capacity.workforce,
+      msmeCategory: bidderRow?.msmeCategory ?? null,
+    });
+    await prisma.vendorCapacityProfile.upsert({
+      where: { bidderId },
+      create: {
+        bidderId,
+        estimatedCapacity: capacity.estimatedCapacity,
+        capacityBasis: capacity.basis,
+        turnoverBasis: book.capacity.turnover,
+        workforceBasis: book.capacity.workforce,
+        recommendedExposureThreshold:
+          capacity.recommendedExposureThresholdPct,
+      },
+      update: {
+        estimatedCapacity: capacity.estimatedCapacity,
+        capacityBasis: capacity.basis,
+        turnoverBasis: book.capacity.turnover,
+        workforceBasis: book.capacity.workforce,
+        recommendedExposureThreshold:
+          capacity.recommendedExposureThresholdPct,
+      },
+    });
+    for (const a of book.awards) {
+      await prisma.geMAward.upsert({
+        where: { referenceNo: a.referenceNo },
+        create: {
+          bidderId,
+          referenceNo: a.referenceNo,
+          title: a.title,
+          category: a.category,
+          procuringOrg: a.procuringOrg,
+          state: a.state,
+          awardValue: a.awardValue,
+          awardDate: new Date(a.awardDate),
+          contractStart: new Date(a.contractStart),
+          expectedCompletion: new Date(a.expectedCompletion),
+          status: a.status,
+          source: "SEEDED",
+          isMock: true,
+        },
+        update: {},
+      });
+    }
+    console.log(`   ✓ ${book.bidderKey} (${book.awards.length} simulated awards)`);
   }
 
   console.log("\n✅ Seed complete.");
