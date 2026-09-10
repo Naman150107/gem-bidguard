@@ -56,7 +56,9 @@ async function callLlm(docs: DocInput[]): Promise<unknown> {
     documents: docs.map((d) => ({
       fileName: d.fileName,
       type: d.type,
-      text: d.content,
+      // Cap per-document text so a long PDF cannot blow the model's context.
+      // The model extracts facts only; compliance is decided by the engine.
+      text: d.content.slice(0, 15_000),
     })),
   };
 

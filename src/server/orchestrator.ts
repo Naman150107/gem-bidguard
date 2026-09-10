@@ -81,7 +81,43 @@ export async function runVerification(
       action: AuditAction.DOCUMENT_EXTRACTED,
       result: `${profile.documents.length} document(s)`,
       aiConfidence: profile.confidence,
+      evidence: {
+        documents: profile.documents.map((d) => ({
+          fileName: d.fileName,
+          type: d.type,
+          pan: d.pan ?? null,
+          gstin: d.gstin ?? null,
+          legalName: d.legalName ?? null,
+          confidence: d.confidence,
+        })),
+      },
     });
+
+    // Store the extraction result against each document so the bidder page can
+    // show exactly what the pipeline verified. Matched by fileName+type within
+    // this bidder (fileNames are unique per upload in practice).
+    await Promise.all(
+      profile.documents.map((d) => {
+        const match = bidder.documents.find(
+          (b) => b.fileName === d.fileName && b.type === d.type,
+        );
+        if (!match) return Promise.resolve(null);
+        return prisma.document.update({
+          where: { id: match.id },
+          data: {
+            extractedFields: {
+              fields: d.fields,
+              ...(d.pan ? { pan: d.pan } : {}),
+              ...(d.gstin ? { gstin: d.gstin } : {}),
+              ...(d.legalName ? { legalName: d.legalName } : {}),
+              ...(d.address ? { address: d.address } : {}),
+              ...(d.status ? { status: d.status } : {}),
+            },
+            extractionConfidence: d.confidence,
+          },
+        });
+      }),
+    );
 
     // 2. Government sources -------------------------------------------------
     const providerResults = await runAllProviders({

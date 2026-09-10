@@ -159,7 +159,9 @@ export default async function BidderPage({
             Submitted documents ({bidder.documents.length})
           </CardTitle>
           <CardDescription>
-            Documents on file for this bidder. These feed the AI extraction step.
+            Documents on file for this bidder. These feed the AI extraction step;
+            extracted fields and confidence below are exactly what verification
+            checks (PASS/FAIL stays with the deterministic rules).
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -171,6 +173,7 @@ export default async function BidderPage({
               <TableRow>
                 <TableHead>Document</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Extraction</TableHead>
                 <TableHead>Issued</TableHead>
                 <TableHead>Expires</TableHead>
               </TableRow>
@@ -179,28 +182,98 @@ export default async function BidderPage({
               {bidder.documents.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="py-6 text-center text-sm text-muted-foreground"
                   >
                     No documents yet. Use the upload form above to add one.
                   </TableCell>
                 </TableRow>
               ) : (
-                bidder.documents.map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell>
-                      <span className="inline-flex items-center gap-2 font-medium">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        {d.fileName}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{humanizeDocType(d.type)}</Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(d.issueDate)}</TableCell>
-                    <TableCell>{formatDate(d.expiryDate)}</TableCell>
-                  </TableRow>
-                ))
+                bidder.documents.map((d) => {
+                  const ext =
+                    (d.extractedFields as unknown as Record<
+                      string,
+                      unknown
+                    > | null) ?? null;
+                  const conf =
+                    typeof d.extractionConfidence === "number"
+                      ? d.extractionConfidence
+                      : null;
+                  const pan =
+                    typeof ext?.pan === "string" ? (ext.pan as string) : null;
+                  const gstin =
+                    typeof ext?.gstin === "string"
+                      ? (ext.gstin as string)
+                      : null;
+                  const legalName =
+                    typeof ext?.legalName === "string"
+                      ? (ext.legalName as string)
+                      : null;
+                  const labelFields =
+                    ext?.fields &&
+                    typeof ext.fields === "object" &&
+                    ext.fields !== null
+                      ? (ext.fields as Record<string, unknown>)
+                      : null;
+                  return (
+                    <TableRow key={d.id}>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-2 font-medium">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          {d.fileName}
+                        </span>
+                        {(pan ?? gstin ?? legalName) && (
+                          <span className="mt-0.5 block font-mono text-[11px] font-normal text-muted-foreground">
+                            {[pan, gstin].filter(Boolean).join(" · ")}
+                            {legalName ? ` · ${legalName}` : ""}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{humanizeDocType(d.type)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {conf === null ? (
+                          <span className="text-xs text-muted-foreground">
+                            Not yet extracted — run verification.
+                          </span>
+                        ) : (
+                          <span className="text-xs">
+                            <span
+                              className={
+                                conf >= 0.9
+                                  ? "font-semibold text-success"
+                                  : conf >= 0.7
+                                    ? "font-semibold text-warning"
+                                    : "font-semibold text-destructive"
+                              }
+                            >
+                              {Math.round(conf * 100)}%
+                            </span>{" "}
+                            <span className="text-muted-foreground">
+                              {conf < 0.7
+                                ? "needs manual review"
+                                : "confidence"}
+                            </span>
+                            {labelFields && (
+                              <details className="mt-0.5">
+                                <summary className="cursor-pointer text-muted-foreground underline-offset-2 hover:underline">
+                                  View fields (
+                                  {Object.keys(labelFields).length})
+                                </summary>
+                                <pre className="mt-1 max-h-40 w-64 overflow-auto rounded border bg-muted/40 p-2 font-mono text-[11px] leading-relaxed">
+                                  {JSON.stringify(ext ?? {}, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatDate(d.issueDate)}</TableCell>
+                      <TableCell>{formatDate(d.expiryDate)}</TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

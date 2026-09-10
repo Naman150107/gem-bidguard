@@ -10,14 +10,13 @@ import { DOC_TYPE_LABEL } from "@/lib/doc-labels";
  * Buyer-side document upload.
  *
  * Posts multipart/form-data to POST /api/upload for an existing bidder. The API
- * validates size/MIME/type and stores the document (text inline) in the
- * database — no filesystem writes, so it works on serverless (Vercel). After a
- * successful upload it refreshes server data so the new document appears; the
- * officer then re-runs verification to fold it into the report.
- *
- * NOTE: the default "seeded" extractor reads the demo's labelled document text.
- * Plain-text uploads in that format are parsed; binary PDFs/images are stored
- * but only yield facts under the LLM extraction mode.
+ * validates size/MIME/type, parses PDFs to usable text, stores the document
+ * (text inline) in the database — no filesystem writes, so it works on
+ * serverless (Vercel) — and returns the deterministic field preview, which is
+ * shown here immediately. After a successful upload it refreshes server data
+ * so the new document appears; the officer then re-runs verification to fold
+ * it into the report (seeded or LLM extraction → deterministic discrepancy
+ * and rule engines; the AI never decides PASS/FAIL).
  */
 
 // Mirrors UPLOAD_LIMITS in src/lib/config.ts. The server enforces the real
@@ -27,6 +26,19 @@ const ACCEPT =
   ".pdf,.txt,.png,.jpg,.jpeg,application/pdf,text/plain,image/png,image/jpeg";
 
 const DOC_TYPES = Object.entries(DOC_TYPE_LABEL) as [string, string][];
+
+interface UploadExtraction {
+  fields: Record<string, string>;
+  pan: string | null;
+  gstin: string | null;
+  legalName: string | null;
+  address: string | null;
+  confidence: number;
+}
+
+function pct(conf: number): string {
+  return `${Math.round(Math.max(0, Math.min(1, conf)) * 100)}%`;
+}
 
 const controlClass =
   "flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm " +
@@ -40,11 +52,15 @@ export function DocumentUploader({ bidderId }: { bidderId: string }) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState<string | null>(null);
+  const [warning, setWarning] = React.useState<string | null>(null);
+  const [extraction, setExtraction] = React.useState<UploadExtraction | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   function reset() {
     setError(null);
     setOk(null);
+    setWarning(null);
+    setExtraction(null);
   }
 
   async function submit(e: React.FormEvent) {
@@ -71,12 +87,18 @@ export function DocumentUploader({ bidderId }: { bidderId: string }) {
       fd.append("type", type);
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        warning?: string;
+        extraction?: UploadExtraction;
+      };
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error ?? "Upload failed.");
       }
 
       setOk(`Uploaded “${file.name}”. Re-run verification to include it.`);
+      setWarning(data.warning ?? null);
+      setExtraction(data.extraction ?? null);
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
       router.refresh();
@@ -156,6 +178,65 @@ export function DocumentUploader({ bidderId }: { bidderId: string }) {
           <CheckCircle2 className="h-3.5 w-3.5" />
           {ok}
         </p>
+      )}
+      {warning && (
+        <p className="text-xs text-warning">
+          {warning} The document was stored with low extraction confidence —
+          the deterministic rules will treat missing fields as needing manual
+          review.
+        </p>
+      )}
+      {extraction && (
+        <div className="rounded-md border bg-muted/40 p-3 text-xs">
+          <p className="font-semibold">
+            Extracted fields ·{" "}
+            <span
+              className={
+                extraction.confidence >= 0.9
+                  ? "text-success"
+                  : extraction.confidence >= 0.7
+                    ? "text-warning"
+                    : "text-destructive"
+              }
+            >
+              {pct(extraction.confidence)} confidence
+            </span>
+          </p>
+          <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            {(
+              [
+                ["PAN", extraction.pan],
+                ["GSTIN", extraction.gstin],
+                ["Legal name", extraction.legalName],
+                ["Address", extraction.address],
+              ] as [string, string | null][]
+            ).map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-baseline justify-between gap-3 border-b border-dashed py-1"
+              >
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="text-right font-mono font-medium">
+                  {value ?? "—"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {Object.keys(extraction.fields).length > 0 && (
+            <details className="mt-1.5">
+              <summary className="cursor-pointer text-muted-foreground underline-offset-2 hover:underline">
+                View all parsed labels ({Object.keys(extraction.fields).length})
+              </summary>
+              <pre className="mt-1 max-h-40 overflow-auto rounded border bg-background p-2 font-mono text-[11px] leading-relaxed">
+                {JSON.stringify(extraction.fields, null, 2)}
+              </pre>
+            </details>
+          )}
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Facts for officer review only — PASS/FAIL is decided by the
+            deterministic rules on re-verification.
+          </p>
+        </div>
       )}
       <p className="text-xs text-muted-foreground">
         Accepted: PDF, TXT, PNG, JPG · up to {MAX_MB} MB. Stored securely in the
