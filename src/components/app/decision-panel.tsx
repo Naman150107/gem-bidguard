@@ -75,31 +75,49 @@ export function DecisionPanel({
         />
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button
-          variant="success"
-          onClick={() => submit(DecisionStatus.QUALIFIED)}
-          disabled={pending !== null}
-        >
-          {pending === DecisionStatus.QUALIFIED ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4" />
-          )}
-          Qualify bidder
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={() => submit(DecisionStatus.REJECTED)}
-          disabled={pending !== null}
-        >
-          {pending === DecisionStatus.REJECTED ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Ban className="h-4 w-4" />
-          )}
-          Reject bidder
-        </Button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-md border border-success/40 bg-success/[0.06] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-success">
+            Officer action · Qualify
+          </p>
+          <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+            Bidder meets requirements in your judgment.
+          </p>
+          <Button
+            variant="success"
+            className="w-full"
+            onClick={() => submit(DecisionStatus.QUALIFIED)}
+            disabled={pending !== null}
+          >
+            {pending === DecisionStatus.QUALIFIED ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            Qualify bidder
+          </Button>
+        </div>
+        <div className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-destructive">
+            Officer action · Reject
+          </p>
+          <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+            Bidder fails requirements in your judgment.
+          </p>
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={() => submit(DecisionStatus.REJECTED)}
+            disabled={pending !== null}
+          >
+            {pending === DecisionStatus.REJECTED ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Ban className="h-4 w-4" />
+            )}
+            Reject bidder
+          </Button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

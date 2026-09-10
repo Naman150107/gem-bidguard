@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { VerificationReport } from "@/components/app/verification-report";
+import { RiskBadge, DecisionBadge } from "@/components/app/status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getRunById } from "@/lib/queries";
 import { getCurrentOfficer } from "@/lib/officer";
 import { formatDateTime } from "@/lib/utils";
-import { RunStatus } from "@/lib/types";
+import { RunStatus, DecisionStatus, type DecisionStatus as DecisionStatusT, type RiskLevel as RiskLevelT } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,15 @@ export default async function VerificationReportPage({
               Run {formatDateTime(run.startedAt)} · extraction:{" "}
               {run.extractionMode ?? "seeded"}
             </span>
+            {completed && (
+              <span className="inline-flex items-center gap-1.5 text-sm">
+                <span className="font-bold tabular-nums">Score {run.complianceScore ?? "—"}/100</span>
+                <RiskBadge level={(run.riskLevel as RiskLevelT | null) ?? null} />
+                <DecisionBadge
+                  status={((run.decisionStatus as DecisionStatusT) ?? DecisionStatus.PENDING)}
+                />
+              </span>
+            )}
           </span>
         }
       />

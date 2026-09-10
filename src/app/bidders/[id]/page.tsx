@@ -80,18 +80,27 @@ export default async function BidderPage({
 
       {/* Latest run summary */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base">Latest verification</CardTitle>
+        <Card className="border-2 lg:col-span-1">
+          <CardHeader className="pb-0 text-center">
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Latest verification · compliance score & risk
+            </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-3">
+          <CardContent className="flex flex-col items-center gap-3 py-6">
             {completed && run ? (
               <>
-                <ScoreGauge score={score} />
-                <RiskBadge level={run.riskLevel as never} />
-                <DecisionBadge
-                  status={(run.decisionStatus as DecisionStatusT) ?? DecisionStatus.PENDING}
-                />
+                <ScoreGauge score={score} size={168} strokeWidth={15} />
+                <div className="flex scale-110 flex-wrap items-center justify-center gap-2">
+                  <RiskBadge level={run.riskLevel as never} />
+                  <DecisionBadge
+                    status={(run.decisionStatus as DecisionStatusT) ?? DecisionStatus.PENDING}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {run.ruleResults.filter((r) => r.result === "FAIL").length} failed ·{" "}
+                  {run.ruleResults.filter((r) => r.result === "WARNING").length} warnings ·{" "}
+                  {run.discrepancies.length} discrepanc{run.discrepancies.length === 1 ? "y" : "ies"}
+                </p>
                 <Link
                   href={`/verification/${run.id}`}
                   className={buttonVariants({ variant: "outline", size: "sm" })}
