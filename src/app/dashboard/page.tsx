@@ -243,7 +243,9 @@ export default async function DashboardPage() {
                   isDone && typeof run?.complianceScore === "number"
                     ? run.complianceScore
                     : null;
-                const level = score !== null ? riskLevelForScore(score) : null;
+                const level =
+                  (run?.riskLevel as RiskLevelT) ??
+                  (score !== null ? riskLevelForScore(score) : null);
                 return (
                   <TableRow key={bidder.id}>
                     <TableCell>

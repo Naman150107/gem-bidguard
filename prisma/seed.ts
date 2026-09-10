@@ -187,11 +187,18 @@ async function main() {
     console.log(`   ✓ ${book.bidderKey} (${book.awards.length} simulated awards)`);
   }
 
-  console.log("\n✅ Seed complete.");
+  console.log("\n✅ Base seed complete.");
   console.log(`   Tender: ${createdTender.referenceNo}`);
   console.log(`   Rules:  ${rules.length}`);
   console.log(`   Bidders: ${bidders.map((b) => b.name).join(", ")}`);
-  console.log("\n   Next: run verifications from the UI, or `npm run demo:verify`.");
+
+  console.log("\n→ Generating verification runs and audit logs...");
+  try {
+    const { execSync } = await import("child_process");
+    execSync("npm run demo:verify", { stdio: "inherit" });
+  } catch (err) {
+    console.warn("   ! Could not auto-run demo:verify:", err);
+  }
 }
 
 main()
