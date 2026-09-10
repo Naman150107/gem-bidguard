@@ -12,8 +12,11 @@
  * evaluating this data.
  *
  * Dates are fixed ISO strings (not relative to "now") so the demo is
- * reproducible. They are positioned around the tender timeline (bid deadline
- * 2026-10-15) and evaluated against the current date at run time.
+ * reproducible. Validity windows are deliberately set so each bidder's outcome
+ * is stable over time: compliant documents expire well after the tender
+ * timeline (bid deadline 2026-10-15), while each deliberate lapse (e.g. XYZ's
+ * expired EPFO document, PQR's expired OEM authorization) is already expired
+ * and therefore fails deterministically whenever the demo is run.
  */
 
 import {
@@ -556,7 +559,7 @@ const xyz: DemoBidder = {
   contactPhone: "+91-260-242-1100",
   declaredLocalContentPct: 55,
   expectedRiskNote:
-    "Compliant on essentials but several warnings (near-expiry OEM, EPFO arrears, expired EPFO doc, address/GSTIN inconsistencies) — expected MODERATE risk.",
+    "Compliant on essentials but several warnings (thin experience, EPFO arrears, expired EPFO doc, address/GSTIN inconsistencies) — expected MODERATE risk.",
   documents: [
     doc(
       DocumentType.GST_CERTIFICATE,
@@ -567,7 +570,7 @@ GSTIN: 24AAACX5678Q1Z8
 Legal Name: XYZ Manufacturing Limited
 PAN: AAACX5678Q
 Constitution of Business: Public Limited Company
-Address: Survey 90, GIDC Estate, Vapi, Gujarat 396195
+Address: Survey 88, GIDC, Vapi, Gujarat 396195
 Date of Registration: 2017-04-10
 Status: Active`,
       { issueDate: "2017-04-10" },
@@ -598,9 +601,9 @@ Average Annual Turnover (last 3 FY): INR 3.40 Crore`,
 OEM Name: Grundfos Pumps India
 Authorized Dealer: XYZ Manufacturing Limited
 Authorized Make/Model: Grundfos NK Series Centrifugal Pumps
-Authorization Valid Upto: 2026-10-30
-Status: Valid (expiring soon)`,
-      { issueDate: "2024-10-30", expiryDate: "2026-10-30" },
+Authorization Valid Upto: 2027-10-30
+Status: Valid`,
+      { issueDate: "2025-10-30", expiryDate: "2027-10-30" },
     ),
     doc(
       DocumentType.LOCAL_CONTENT_DECLARATION,
