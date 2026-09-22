@@ -1,6 +1,6 @@
-# Architecture — GeM BidGuard
+# Architecture — VendorPulse AI
 
-This document describes how GeM BidGuard is put together, the design principles
+This document describes how VendorPulse AI is put together, the design principles
 behind it, and where to plug in real integrations. For setup and usage, see
 [`README.md`](README.md).
 

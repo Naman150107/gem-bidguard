@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/app/sidebar";
 import { getCurrentOfficer } from "@/lib/officer";
 
 export const metadata: Metadata = {
-  title: "GeM BidGuard — Bid Compliance Verification",
+  title: "VendorPulse AI — Bid Compliance Verification",
   description:
     "AI-powered decision-support platform for verifying bidder compliance in GeM procurement (SIH 2026 PS 26100).",
 };

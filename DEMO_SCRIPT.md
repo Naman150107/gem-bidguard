@@ -1,4 +1,4 @@
-# Demo Script — GeM BidGuard
+# Demo Script — VendorPulse AI
 
 A ~6-minute walkthrough for judges. It tells one story: **three bidders on the
 same tender, three very different risk outcomes, all produced by transparent
@@ -36,7 +36,7 @@ Have the app open at `/dashboard`.
 
 > "GeM procurement officers manually cross-check every bidder's documents
 > against multiple government portals — GST, PAN, MSME, EPFO, debarment lists.
-> It's slow and error-prone. GeM BidGuard automates the *checking* and *risk
+> It's slow and error-prone. VendorPulse AI automates the *checking* and *risk
 > scoring*, but keeps the officer in charge of the *decision*."
 
 Point to the disclaimer banner:

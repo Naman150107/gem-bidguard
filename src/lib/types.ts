@@ -1,5 +1,5 @@
 /**
- * Shared domain types for GeM BidGuard.
+ * Shared domain types for VendorPulse AI.
  *
  * Enums are modelled as `const` objects + string-literal unions (instead of TS
  * `enum`) so they:

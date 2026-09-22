@@ -1,9 +1,9 @@
-# GeM BidGuard
+# VendorPulse AI
 
 **AI-Powered Integrated Bid Compliance Verification Platform for GeM Procurement**
 Smart India Hackathon 2026 — Problem Statement 26100
 
-GeM BidGuard is a decision-support tool for Government e-Marketplace (GeM)
+VendorPulse AI is a decision-support tool for Government e-Marketplace (GeM)
 procurement officers. It ingests a bidder's submitted documents, cross-checks
 them against (mock) government registries, runs a **deterministic** compliance
 engine, computes a weighted risk score, and produces a plain-language summary

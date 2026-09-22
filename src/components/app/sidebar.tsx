@@ -27,7 +27,7 @@ export function Sidebar({ officerName }: { officerName: string }) {
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-bold">GeM BidGuard</div>
+          <div className="text-sm font-bold">VendorPulse AI</div>
           <div className="text-[11px] text-muted-foreground">
             Bid Compliance Verification
           </div>
